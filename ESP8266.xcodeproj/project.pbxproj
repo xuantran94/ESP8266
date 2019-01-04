@@ -25,6 +25,9 @@
 /* Begin PBXFileReference section */
 		8667A67A21DFA7ED00B31AFB /* ESP8266 */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = ESP8266; sourceTree = BUILT_PRODUCTS_DIR; };
 		8667A67D21DFA7ED00B31AFB /* main.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = "<group>"; };
+		8667A68421DFBDAA00B31AFB /* BSW */ = {isa = PBXFileReference; lastKnownFileType = folder; path = BSW; sourceTree = "<group>"; };
+		8667A68521DFBDAA00B31AFB /* Lib */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Lib; sourceTree = "<group>"; };
+		8667A68621DFBDAA00B31AFB /* ASW */ = {isa = PBXFileReference; lastKnownFileType = folder; path = ASW; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -57,6 +60,9 @@
 		8667A67C21DFA7ED00B31AFB /* ESP8266 */ = {
 			isa = PBXGroup;
 			children = (
+				8667A68621DFBDAA00B31AFB /* ASW */,
+				8667A68421DFBDAA00B31AFB /* BSW */,
+				8667A68521DFBDAA00B31AFB /* Lib */,
 				8667A67D21DFA7ED00B31AFB /* main.c */,
 			);
 			path = ESP8266;

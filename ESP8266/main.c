@@ -8,12 +8,12 @@
 #include <string.h>
 #include "FreeRTOS.h"
 #include "task.h"
-#include "http_client_ota.h"
+#include "Lib/OTA/http_client_ota.h"
 #include <dhcpserver.h>
 #include <queue.h>
-#include "NetworkHandle.h"
+#include "ASW/Network/NetworkHandle.h"
 #include <semphr.h>
-#include "MQTT.h"
+#include "ASW/MQTT/MQTT.h"
 #include "arch/cc.h"
 #include "lwip/err.h"
 #include "lwip/sockets.h"
@@ -25,11 +25,10 @@
 #include <espressif/esp_common.h>
 #include <espressif/esp_system.h>
 #include "mbedtls/sha256.h"
-#include "http_client_ota.h"
 #include "rboot-api.h"
 #include "rboot.h"
-#include "define.h"
-#include "Dio.h"
+#include "Conf/define.h"
+#include "BSW/GPIO/Dio.h"
 
 #define vTaskDelayMs(ms) vTaskDelay((ms) / portTICK_PERIOD_MS)
 
