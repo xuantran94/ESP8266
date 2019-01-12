@@ -9,7 +9,7 @@
 #ifndef define_h
 #define define_h
 
-#define NUM_HOST 1
+#define NUM_HOST 2
 #define MAX_TRY_TIME 10
 #define vTaskDelayMs(ms) vTaskDelay((ms) / portTICK_PERIOD_MS)
 

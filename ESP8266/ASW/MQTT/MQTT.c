@@ -75,26 +75,65 @@ printf("[%s]\t" fmt "\n", MODULE, ## args)
 #define PUB_MSG_LEN 32
 #define vTaskDelayMs(ms) vTaskDelay((ms) / portTICK_PERIOD_MS)
 extern SemaphoreHandle_t wifi_alive;
-char* hostList[NUM_HOST] ={"iot.eclipse.org","broker.hivemq.com","test.mosquitto.org","ahihi.com"};
+char* hostList[NUM_HOST] ={"test.mosquitto.org","iot.eclipse.org","broker.hivemq.com"};
 struct MQTTHost{
     char* name;
     uint8_t tryTime;
     uint8_t status;
     QueueHandle_t publish_Q;
+    QueueHandle_t publish_QG;
 };
 uint8_t numConnectedHost=0;
 volatile bool bootTime = true;
 volatile uint8_t expected_msg=0;
 struct MQTTHost host[NUM_HOST];
 
-
-void  adc_task(void *pvParameters){
+void button_task(void *pvParameters){
+    uint8_t btStatus = 1;
+    while(1){
+        btStatus = BT_READ();
+        vTaskDelay(5);
+        if((btStatus==1)&&(BT_READ()==0)){
+            DEBUG_PRINT("toggle light");
+            btStatus = 0;
+            if(SW_READ()==1){
+                SW_OFF();
+                char  out[2] = {'0','\0'};
+                //DEBUG_PRINT("response %s", out);
+                for (uint8_t i =0;i<NUM_HOST; i++) {
+                    if(host[i].status){
+                        if (xQueueSend(host[i].publish_Q, (void *)out, 0) == pdFALSE) {
+                            //printf("%s Publish queue overflow",host[i].name);
+                            xQueueReceive(host[i].publish_Q, (void *)out, 0);
+                        }
+                    }
+                }
+            }else{
+                SW_ON();
+                char  out[2] = {'1','\0'};
+                //DEBUG_PRINT("response %s", out);
+                for (uint8_t i =0;i<NUM_HOST; i++) {
+                    if(host[i].status){
+                        if (xQueueSend(host[i].publish_Q, (void *)out, 0) == pdFALSE) {
+                            //printf("%s Publish queue overflow",host[i].name);
+                            xQueueReceive(host[i].publish_Q, (void *)out, 0);
+                        }
+                    }
+                }
+            }
+        }
+        //DEBUG_PRINT("bt=%d\n", btStatus);
+    }
+}
+void  sensor_task(void *pvParameters){
     while (1) {
         uint16 adc_read = 0;
         for(uint8_t i=0;i<10;i++){
             adc_read+=sdk_system_adc_read();
             vTaskDelay(20);
         }
+        DEBUG_PRINT("adc=%d\n", adc_read);
+        
         float temp = adc_read*3.3*10.0/1024.0;
         DEBUG_PRINT("%f\n", temp);
         char out [50];
@@ -107,7 +146,33 @@ void  adc_task(void *pvParameters){
                 }
             }
         }
-        vTaskDelay(200);    //Read every 200milli Sec
+        
+        
+        uint8_t gas_status = GAS_READ();
+        DEBUG_PRINT("gas=%d\n", gas_status);
+        if(gas_status){
+            char  outg[2] = {'0','\0'};
+            for (uint8_t i =0;i<NUM_HOST; i++) {
+                if(host[i].status){
+                    if (xQueueSend(host[i].publish_QG, (void *)outg, 0) == pdFALSE) {
+                        printf("%s Publish queue overflow",host[i].name);
+                        xQueueReceive(host[i].publish_Q, (void *)outg, 0);
+                    }
+                }
+            }
+        }else{
+            char  outg[2] = {'1','\0'};
+            for (uint8_t i =0;i<NUM_HOST; i++) {
+                if(host[i].status){
+                    if (xQueueSend(host[i].publish_QG, (void *)outg, 0) == pdFALSE) {
+                        printf("%s Publish queue overflow",host[i].name);
+                        xQueueReceive(host[i].publish_Q, (void *)outg, 0);
+                    }
+                }
+            }
+        }
+        
+        vTaskDelay(20);    //Read every 200milli Sec
     }
 }
 static void  topic_received(mqtt_message_data_t *md)
@@ -134,56 +199,87 @@ static void  topic_received(mqtt_message_data_t *md)
     printf("\r\n");
     DEBUG_PRINT("len =%d", message->payloadlen);
     DEBUG_PRINT("recive %s", buff);
-    cJSON *root = cJSON_Parse(buff);
-    if(root){
-        uint8_t status = 0xff;
-        if(cJSON_HasObjectItem(root, "msg")){
-            uint8_t msg;
-            msg= cJSON_GetObjectItem(root, "msg")->valueint;
-            if (msg>=expected_msg){
-                expected_msg=msg+1;
-                if(cJSON_HasObjectItem(root, "sw1")){
-                    status = cJSON_GetObjectItem(root, "sw1")->valueint;
-                    dioSetOutputWithPos(0, status);
-                    DEBUG_PRINT("statuf = %d", status);
-                }else{
-                    DEBUG_PRINT("%s", "dont have sw1");
+    if(buff[0]=='1'){
+        SW_ON();
+        DEBUG_PRINT("ON");
+        char  out[2] = {'1','\0'};
+        DEBUG_PRINT("response %s", out);
+        for (uint8_t i =0;i<NUM_HOST; i++) {
+            if(host[i].status){
+                if (xQueueSend(host[i].publish_Q, (void *)out, 0) == pdFALSE) {
+                    printf("%s Publish queue overflow",host[i].name);
+                    xQueueReceive(host[i].publish_Q, (void *)out, 0);
                 }
-                if(dioGetOutput()!=0xff){
-                    cJSON *deviceStatus = NULL;
-                    deviceStatus = cJSON_CreateObject();
-                    cJSON_AddNumberToObject(deviceStatus, "msg", expected_msg);
-                    cJSON_AddNumberToObject(deviceStatus, "sw1", dioGetOutputWithPos(0));
-                    char *out = cJSON_PrintUnformatted(deviceStatus);
-                    DEBUG_PRINT("response %s", out);
-                    for (uint8_t i =0;i<NUM_HOST; i++) {
-                        if(host[i].status){
-                            if (xQueueSend(host[i].publish_Q, (void *)out, 0) == pdFALSE) {
-                                printf("%s Publish queue overflow",host[i].name);
-                                xQueueReceive(host[i].publish_Q, (void *)out, 0);
-                            }
-                        }
-                    }
-                    cJSON_Delete(deviceStatus);
-                    free(out);
-                }
-            }else{
-                DEBUG_PRINT("%s", "discard this msg");
             }
         }
-        
-    }else{
-        DEBUG_PRINT("invalid json\r\n");
     }
-    cJSON_Delete(root);
+    else if (buff[0]=='0'){
+        SW_OFF();
+        DEBUG_PRINT("OFF");
+        char  out[2] = {'0','\0'};
+        DEBUG_PRINT("response %s", out);
+        for (uint8_t i =0;i<NUM_HOST; i++) {
+            if(host[i].status){
+                if (xQueueSend(host[i].publish_Q, (void *)out, 0) == pdFALSE) {
+                    printf("%s Publish queue overflow",host[i].name);
+                    xQueueReceive(host[i].publish_Q, (void *)out, 0);
+                }
+            }
+        }
+    }
+//    cJSON *root = cJSON_Parse(buff);
+//    if(root){
+//        uint8_t status = 0xff;
+//        if(cJSON_HasObjectItem(root, "msg")){
+//            uint8_t msg;
+//            msg= cJSON_GetObjectItem(root, "msg")->valueint;
+//            if (msg>=expected_msg){
+//                expected_msg=msg+1;
+//                if(cJSON_HasObjectItem(root, "sw1")){
+//                    status = cJSON_GetObjectItem(root, "sw1")->valueint;
+//                    dioSetOutputWithPos(0, status);
+//                    DEBUG_PRINT("statuf = %d", status);
+//                }else{
+//                    DEBUG_PRINT("%s", "dont have sw1");
+//                }
+//                if(dioGetOutput()!=0xff){
+//                    cJSON *deviceStatus = NULL;
+//                    deviceStatus = cJSON_CreateObject();
+//                    cJSON_AddNumberToObject(deviceStatus, "msg", expected_msg);
+//                    cJSON_AddNumberToObject(deviceStatus, "sw1", dioGetOutputWithPos(0));
+//                    char *out = cJSON_PrintUnformatted(deviceStatus);
+//                    DEBUG_PRINT("response %s", out);
+//                    for (uint8_t i =0;i<NUM_HOST; i++) {
+//                        if(host[i].status){
+//                            if (xQueueSend(host[i].publish_Q, (void *)out, 0) == pdFALSE) {
+//                                printf("%s Publish queue overflow",host[i].name);
+//                                xQueueReceive(host[i].publish_Q, (void *)out, 0);
+//                            }
+//                        }
+//                    }
+//                    cJSON_Delete(deviceStatus);
+//                    free(out);
+//                }
+//            }else{
+//                DEBUG_PRINT("%s", "discard this msg");
+//            }
+//        }
+//
+//    }else{
+//        DEBUG_PRINT("invalid json\r\n");
+//    }
+//    cJSON_Delete(root);
     
 
 }
 
 void  mqtt_task(void *pvParameters)
 {
+    LED2_INIT();
+    LED2_OFF();
     uint8_t index = *(uint8_t*)pvParameters;
     host[index].publish_Q = xQueueCreate(3, PUB_MSG_LEN);
+    host[index].publish_QG = xQueueCreate(3, PUB_MSG_LEN);
     host[index].name = hostList[index];
     host[index].tryTime = MAX_TRY_TIME;
     //initialzation the mqtt connection
@@ -196,7 +292,7 @@ void  mqtt_task(void *pvParameters)
     mqtt_packet_connect_data_t data = mqtt_packet_connect_data_initializer;
     mqtt_network_new( &network );
     memset(mqtt_client_id, 0, sizeof(mqtt_client_id));
-    strcpy(mqtt_client_id, "ESP-");
+    strcpy(mqtt_client_id, "ESPjj-");
     strcat(mqtt_client_id, get_my_id());
     
     while(1) {
@@ -241,6 +337,8 @@ void  mqtt_task(void *pvParameters)
             host[index].tryTime = MAX_TRY_TIME;
             char rTopic[16];
             char tTopic[16];
+            char* tGas;
+            char* tGasOut;
             strcpy(rTopic,"/");
             strcat(rTopic,get_my_id());
             strcat(rTopic, "R/");
@@ -251,18 +349,68 @@ void  mqtt_task(void *pvParameters)
             DEBUG_PRINT("subscribe %s",tTopic);
             mqtt_subscribe(&client, tTopic, MQTT_QOS1, topic_received);
             xQueueReset(host[index].publish_Q);
+            //gas = ""
+            LED2_ON();
             uint32_t delay = 1000;
             while (bootTime && (delay)) {
                 delay--;
                 vTaskDelayMs(1);
             }
             mqtt_unsubscribe(&client, tTopic);
+            tGas = "/CC50E34A4B61R/";
+            tGasOut = "/CC50E34A4B61O/";
+//            if(SW_READ()==1){
+//                char  out[2] = {'1','\0'};
+//                //DEBUG_PRINT("response %s", out);
+//                for (uint8_t i =0;i<NUM_HOST; i++) {
+//                    if(host[i].status){
+//                        if (xQueueSend(host[i].publish_Q, (void *)out, 0) == pdFALSE) {
+//                            //printf("%s Publish queue overflow",host[i].name);
+//                            xQueueReceive(host[i].publish_Q, (void *)out, 0);
+//                        }
+//                    }
+//                }
+//            }else{
+//                char  out[2] = {'0','\0'};
+//                //DEBUG_PRINT("response %s", out);
+//                for (uint8_t i =0;i<NUM_HOST; i++) {
+//                    if(host[i].status){
+//                        if (xQueueSend(host[i].publish_Q, (void *)out, 0) == pdFALSE) {
+//                            //printf("%s Publish queue overflow",host[i].name);
+//                            xQueueReceive(host[i].publish_Q, (void *)out, 0);
+//                        }
+//                    }
+//                }
+//            }
+            
             while(1){
+                
                 vTaskDelay(1);
                 char msg[PUB_MSG_LEN];
+                while(xQueueReceive(host[index].publish_QG, (void *)msg, 0) == pdTRUE){
+                    msg[strlen(msg)] = '\0';
+                    //DEBUG_PRINT("%s publish gas: %s to %s",host[index].name,msg,tGas);
+                    mqtt_message_t message;
+                    message.payload = msg;
+                    message.payloadlen = strlen(msg)+1;
+                    message.dup = 0;
+                    message.qos = MQTT_QOS0;
+                    message.retained = 0;
+                    ret = mqtt_publish(&client, tGasOut, &message);
+                    if(msg[0]=='1'){
+                        
+                        msg[0]= '0';
+                        message.payload = msg;
+                        ret = mqtt_publish(&client, tGas, &message);
+                    }
+                    if (ret != MQTT_SUCCESS ){
+                        DEBUG_PRINT("%s error while publishing message: %d\n", host[index].name, ret );
+                        break;
+                    }
+                }
                 while(xQueueReceive(host[index].publish_Q, (void *)msg, 0) == pdTRUE){
                     msg[strlen(msg)] = '\0';
-                    DEBUG_PRINT("%s publish: %s",host[index].name,msg);
+                    //DEBUG_PRINT("%s publish temp: %s to %s",host[index].name,msg,tTopic);
                     mqtt_message_t message;
                     message.payload = msg;
                     message.payloadlen = strlen(msg)+1;
@@ -280,6 +428,7 @@ void  mqtt_task(void *pvParameters)
                 if (ret == MQTT_DISCONNECTED)
                     break;
             }
+            LED2_OFF();
             numConnectedHost--;
             host[index].status=0;
             DEBUG_PRINT("%s Connection dropped, request restart\n\r",host[index].name);

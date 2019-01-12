@@ -13,6 +13,5 @@
 
 void  wifi_task(void *pvParameters);
 char *  get_my_id(void);
-void nonBlockingTCP(void *pvParameters);
 
 #endif /* NetworkHandle_h */

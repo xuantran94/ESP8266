@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		8667A67E21DFA7ED00B31AFB /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = 8667A67D21DFA7ED00B31AFB /* main.c */; };
+		8667A68A21DFC0EB00B31AFB /* Makefile in Sources */ = {isa = PBXBuildFile; fileRef = 8667A68921DFC0EB00B31AFB /* Makefile */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -28,6 +29,8 @@
 		8667A68421DFBDAA00B31AFB /* BSW */ = {isa = PBXFileReference; lastKnownFileType = folder; path = BSW; sourceTree = "<group>"; };
 		8667A68521DFBDAA00B31AFB /* Lib */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Lib; sourceTree = "<group>"; };
 		8667A68621DFBDAA00B31AFB /* ASW */ = {isa = PBXFileReference; lastKnownFileType = folder; path = ASW; sourceTree = "<group>"; };
+		8667A68921DFC0EB00B31AFB /* Makefile */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.make; path = Makefile; sourceTree = "<group>"; };
+		8667A68B21DFC3E100B31AFB /* Conf */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Conf; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -60,6 +63,8 @@
 		8667A67C21DFA7ED00B31AFB /* ESP8266 */ = {
 			isa = PBXGroup;
 			children = (
+				8667A68B21DFC3E100B31AFB /* Conf */,
+				8667A68921DFC0EB00B31AFB /* Makefile */,
 				8667A68621DFBDAA00B31AFB /* ASW */,
 				8667A68421DFBDAA00B31AFB /* BSW */,
 				8667A68521DFBDAA00B31AFB /* Lib */,
@@ -124,6 +129,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8667A68A21DFC0EB00B31AFB /* Makefile in Sources */,
 				8667A67E21DFA7ED00B31AFB /* main.c in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

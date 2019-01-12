@@ -1,4 +1,4 @@
 #!/bin/bash
-cd SmartHome
+cd ESP8266
 open -a Terminal "`pwd`"
-cd SmartHome
+cd ESP8266

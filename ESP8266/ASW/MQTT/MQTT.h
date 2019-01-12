@@ -11,5 +11,7 @@
 
 void  mqtt_task(void *pvParameters);
 void  adc_task(void *pvParameters);
+void  sensor_task(void *pvParameters);
+void  button_task(void *pvParameters);
 
 #endif /* MQTT_h */
